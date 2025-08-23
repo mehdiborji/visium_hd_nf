@@ -33,19 +33,18 @@ process MAKE_ADATA_BINNED {
 
     spatial_pos = f"{binned_folder}/spatial/tissue_positions.parquet"
     positions = pd.read_parquet(spatial_pos)
-    positions.set_index('barcode',inplace=True)
+    positions.set_index("barcode", inplace=True)
 
-    y = 'pxl_row_in_fullres'
-    x = 'pxl_col_in_fullres'
+    y = "pxl_row_in_fullres"
+    x = "pxl_col_in_fullres"
 
-    coords = adata.obs.join(positions[[x,y]])[[x,y]].values
+    coords = adata.obs.join(positions[[x, y]])[[x, y]].values
 
-    adata.obsm['spatial'] = coords
+    adata.obsm["spatial"] = coords
 
-    adata = adata[:,~adata.var.gene_ids.str.contains('DEPRECATED_')].copy()
+    adata = adata[:, ~adata.var.gene_ids.str.contains("DEPRECATED_")].copy()
 
     adata.write_h5ad("adata_${bin_size}_raw.h5ad", compression="gzip")
-
     """
 }
 
