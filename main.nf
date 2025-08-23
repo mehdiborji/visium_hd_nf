@@ -132,13 +132,70 @@ process FILTER_ADATA {
     plt.savefig("${bin_size}_log10_n_counts_spatial.pdf", bbox_inches="tight")
     plt.show()
 
-    sc.pp.highly_variable_genes(adata, flavor="seurat_v3", n_top_genes=10000, inplace=True)
+    sc.pp.highly_variable_genes(
+        adata, 
+        flavor="seurat_v3", 
+        n_top_genes=10000, 
+        inplace=True
+    )
 
     mean_counts = (10**adata.var.log10_n_counts).mean()
     sc.pp.normalize_total(adata, target_sum=mean_counts)
     sc.pp.log1p(adata)
 
     adata.write_h5ad("adata_${bin_size}_filtered.h5ad", compression="gzip")
+    """
+}
+
+process DO_SVD {
+        
+    cpus 1
+    memory '32 GB'
+
+    container 'visium_hd_env'
+
+    publishDir params.results_folder, mode: 'symlink'
+
+    input:
+        path adata_filtered
+        val bin_size
+        val n_components
+        val method
+
+    output:
+        path "adata_${bin_size}_SVD.h5ad", emit: adata_SVD
+        path "${bin_size}_pca_variance.png"
+
+    script:
+    """
+    #!/usr/bin/env python
+
+    import scanpy as sc
+    import matplotlib.pyplot as plt
+    from sklearn.decomposition import TruncatedSVD
+
+    adata = sc.read("${adata_filtered}")
+    adata.raw = adata
+    adata = adata[:, adata.var.highly_variable].copy()
+    sc.pp.scale(adata, max_value=10)
+
+    svd = TruncatedSVD(n_components=$n_components, algorithm="${method}")
+    X_svd = svd.fit_transform(adata.X)
+    adata.obsm["X_pca"] = X_svd
+    adata.varm["PCs"] = svd.components_.T
+    adata.uns["pca"] = dict(
+        variance=svd.explained_variance_,
+        variance_ratio=svd.explained_variance_ratio_,
+    )
+
+    adata = adata.raw.to_adata()
+
+    plt.rcParams["figure.figsize"] = (5, 3)
+    sc.pl.pca_variance_ratio(adata, log=True, n_pcs=$n_components)
+    plt.savefig("${bin_size}_pca_variance.png", bbox_inches="tight")
+    plt.close()
+
+    adata.write_h5ad(f"adata_${bin_size}_SVD.h5ad", compression="gzip")
     """
 }
 
@@ -149,6 +206,7 @@ workflow {
 
     FILTER_ADATA(MAKE_ADATA_BINNED.out.adata_raw, "008um", 10, 10, 15, 20)
 
-    
+    DO_SVD(FILTER_ADATA.out.adata_filtered, "008um", 100, "randomized")
+
 }
 
