@@ -1,9 +1,5 @@
 #!/usr/bin/env nextflow
-
-params.dataset_folder = "/Users/mb/visium/Visium_HD_Human_Lymph_Node_FFPE"
-input_folder = Channel.of(params.dataset_folder)
-
-params.results_folder = "results"
+nextflow.enable.dsl = 2
 
 process MAKE_ADATA_BINNED {
 
@@ -47,7 +43,6 @@ process MAKE_ADATA_BINNED {
     adata.write_h5ad("adata_${bin_size}_raw.h5ad", compression="gzip")
     """
 }
-
 
 process FILTER_ADATA {
 
@@ -289,14 +284,37 @@ process DO_KNN_UMAP_LEIDEN {
 }
 
 workflow {
-    
-    MAKE_ADATA_BINNED(input_folder, "008um")
+    input_folder = Channel.of(params.dataset_folder)
 
-    FILTER_ADATA(MAKE_ADATA_BINNED.out.adata_raw, "008um", 10, 10, 15, 20)
+    MAKE_ADATA_BINNED(input_folder, params.bin_size)
 
-    DO_SVD(FILTER_ADATA.out.adata_filtered, "008um", 5000, 100, "randomized")
+    FILTER_ADATA(
+        MAKE_ADATA_BINNED.out.adata_raw, 
+        params.bin_size,
+        params.min_counts_per_gene,
+        params.min_cells_per_gene,
+        params.min_counts_per_cell,
+        params.min_genes_per_cell
+    )
 
-    DO_KNN_UMAP_LEIDEN(DO_SVD.out.adata_SVD, "008um", 20, "cosine", 20, 0.5, 1.2, 500, 1)
+    DO_SVD(
+        FILTER_ADATA.out.adata_filtered,
+        params.bin_size,
+        params.n_variable_genes,
+        params.n_components,
+        params.svd_method
+    )
 
+    DO_KNN_UMAP_LEIDEN(
+        DO_SVD.out.adata_SVD,
+        params.bin_size,
+        params.umap_n_components,
+        params.umap_metric,
+        params.n_neighbors,
+        params.min_dist,
+        params.spread,
+        params.n_epochs,
+        params.leiden_resolution
+    )
 }
 
