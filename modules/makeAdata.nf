@@ -21,22 +21,39 @@ process makeAdata {
     import scanpy as sc
     import pandas as pd
 
-    binned_folder = "${input_folder}/binned_outputs/square_${bin_size}"
+    if "${bin_size}" != "cell":
 
-    raw_h5 = f"{binned_folder}/raw_feature_bc_matrix.h5"
-    adata = sc.read_10x_h5(raw_h5)
-    adata.var_names_make_unique()
+        binned_folder = "${input_folder}/binned_outputs/square_${bin_size}"
 
-    spatial_pos = f"{binned_folder}/spatial/tissue_positions.parquet"
-    positions = pd.read_parquet(spatial_pos)
-    positions.set_index("barcode", inplace=True)
+        raw_h5 = f"{binned_folder}/raw_feature_bc_matrix.h5"
+        adata = sc.read_10x_h5(raw_h5)
+        adata.var_names_make_unique()
 
-    y = "pxl_row_in_fullres"
-    x = "pxl_col_in_fullres"
+        spatial_pos = f"{binned_folder}/spatial/tissue_positions.parquet"
+        positions = pd.read_parquet(spatial_pos)
+        positions.set_index("barcode", inplace=True)
+        y = "pxl_row_in_fullres"
+        x = "pxl_col_in_fullres"
+        coords = adata.obs.join(positions[[x, y]])[[x, y]].values
+        adata.obsm["spatial"] = coords
 
-    coords = adata.obs.join(positions[[x, y]])[[x, y]].values
+    else:
 
-    adata.obsm["spatial"] = coords
+        segmented_folder = "${input_folder}/segmented_outputs"
+
+        raw_h5 = f"{segmented_folder}/raw_feature_cell_matrix.h5"
+        adata = sc.read_10x_h5(raw_h5)
+        adata.var_names_make_unique()
+
+        import geopandas as gpd
+
+        gdf = gpd.read_file(f"{segmented_folder}/cell_segmentations.geojson")
+        gdf.index = adata.obs.index
+        gdf['area'] = gdf.geometry.area
+        gdf['x'] = gdf.geometry.centroid.x
+        gdf['y'] = gdf.geometry.centroid.y
+        adata.obsm['spatial'] = gdf[['x','y']].values
+        adata.obs['area'] = gdf['area'].values
 
     adata = adata[:, ~adata.var.gene_ids.str.contains("DEPRECATED_")].copy()
 
