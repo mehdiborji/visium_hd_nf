@@ -1,9 +1,8 @@
-# Nextflow Pipeline For Processing Visium HD from 10x Genomics
-
+# Nextflow Pipeline for Processing Visium HD Count Data from 10x Genomics
 
 ## Install Prerequisites
 
-Docker and Nextflow are required prior to running the pipeline
+Docker and Nextflow are required before running the pipeline:
 ```
 https://docs.docker.com/get-started/get-docker/
 ```
@@ -16,24 +15,26 @@ Download Nextflow Pipeline
 ```
 cd $HOME
 mkdir nextflow
-https://github.com/mehdiborji/visium_hd_nf
+git clone https://github.com/mehdiborji/visium_hd_nf
 cd visium_hd_nf
 ```
 Using `tree` you should be able to see the following:
+
 ```
 .
 ├── conda.yml
 ├── Dockerfile
 ├── main.nf
 ├── modules
-│   ├── doKNN_UMAP_Leiden.nf
-│   ├── doSVD.nf
-│   ├── filterAdata.nf
-│   └── makeAdata.nf
-└── nextflow.config
+│   ├── doKNN_UMAP_Leiden.nf
+│   ├── doSVD.nf
+│   ├── filterAdata.nf
+│   └── makeAdata.nf
+├── nextflow.config
+└── README.md
 ```
 
-Within `visium_hd_nf` build Docker image:
+Within the `visium_hd_nf` directory, build the Docker image:
 
 ```
 docker build -t visium_hd_env .
